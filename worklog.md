@@ -70,15 +70,37 @@ Stage Summary:
 
 Task ID: 3
 Agent: Z.ai Code
-Task: Fix Cashier dropdown being hidden/cut off in Open Shift dialog
+Task: Fix Cashier dropdown visibility in Open Shift dialog
 
 Work Log:
 - Identified issue: Cashier SelectContent dropdown was being clipped by Dialog overflow/positioning
 - Added z-40 class to DialogContent to establish proper stacking context
-- Added z-50 class to SelectContent to ensure it renders above the dialog
+- Added z-50 class to SelectContent to ensure dropdown renders above dialog
 - Added max-h-60 and overflow-y-auto to SelectContent for scrollable list when many cashiers
 
 Stage Summary:
 - Cashier dropdown now properly visible and accessible when opening shift as admin
 - Proper z-index hierarchy established (Dialog: z-40, SelectContent: z-50)
 - Dropdown is scrollable if there are many cashiers
+
+---
+
+Task ID: 4
+Agent: Z.ai Code
+Task: Add offline support for order creation in POS
+
+Work Log:
+- Identified issue: Order creation fails with "net::ERR_NAME_NOT_RESOLVED" when offline
+- Created createOrderOffline() helper function to save orders to IndexedDB when offline
+- Added network connectivity check before API call (similar to shift creation)
+- Added fallback to offline mode when network check fails or API returns network error
+- Order data includes all fields: customer info, delivery info, loyalty redemption, shift ID
+- Orders created offline generate temporary IDs and order numbers
+- Offline orders are queued for sync when connection is restored
+
+Stage Summary:
+- Orders can now be created offline and will sync when online
+- Network detection uses HEAD request to verify actual connectivity
+- Proper error handling with user-friendly alerts
+- Order numbers are generated locally for offline orders
+- All order types supported: dine-in, take-away, delivery

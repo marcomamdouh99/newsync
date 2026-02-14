@@ -25,6 +25,67 @@ import { ReceiptViewer } from '@/components/receipt-viewer';
 import CustomerSearch from '@/components/customer-search';
 import { useOfflineData, offlineDataFetchers } from '@/hooks/use-offline-data';
 
+// Helper function to create order offline
+async function createOrderOffline(orderData: any, shift: any): Promise<any> {
+  try {
+    console.log('[Order] Creating order offline, orderData:', orderData);
+
+    // Import localStorageService
+    const { localStorageService } = await import('@/lib/storage/local-storage');
+    console.log('[Order] localStorageService imported');
+
+    // Initialize storage if not already initialized
+    await localStorageService.init();
+    console.log('[Order] localStorageService initialized');
+
+    // Create a temporary order ID (will be replaced on sync)
+    const tempId = `temp-order-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    console.log('[Order] Created tempId:', tempId);
+
+    // Get the last order number from local storage to generate a new one
+    const allOrders = await localStorageService.getAllOrders();
+    const lastOrderNum = allOrders.reduce((max: number, order: any) => {
+      return order.orderNumber ? Math.max(max, order.orderNumber) : max;
+    }, 0);
+
+    // Create order object
+    const newOrder = {
+      id: tempId,
+      ...orderData,
+      orderNumber: lastOrderNum + 1,
+      status: 'completed',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      // Include shift info
+      shiftId: shift.id,
+    };
+
+    console.log('[Order] Created order object:', newOrder);
+
+    // Save order to IndexedDB
+    await localStorageService.saveOrder(newOrder);
+    console.log('[Order] Order saved to IndexedDB');
+
+    // Queue operation for sync
+    await localStorageService.addOperation({
+      type: 'CREATE_ORDER',
+      data: {
+        ...orderData,
+        tempId,
+      },
+      branchId: orderData.branchId,
+      retryCount: 0,
+    });
+    console.log('[Order] Operation queued for sync');
+
+    console.log('[Order] Order created offline successfully:', newOrder);
+    return { order: newOrder, success: true };
+  } catch (error) {
+    console.error('[Order] Failed to create order offline, error:', error);
+    throw error;
+  }
+}
+
 interface CartItem {
   id: string;
   menuItemId: string;
@@ -760,7 +821,8 @@ export default function POSInterface() {
         cashierId: user?.id,
       };
 
-      console.log('Order data prepared:', orderData);
+      // Add shiftId to order data
+      orderData.shiftId = currentShift?.id;
 
       // Add customer data for all order types (not just delivery)
       if (selectedAddress) {
@@ -790,42 +852,124 @@ export default function POSInterface() {
         }
       }
 
-      const response = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(orderData),
-      });
+      console.log('Order data prepared:', orderData);
 
-      const data = await response.json();
+      // Check actual network connectivity before trying API
+      let isActuallyOnline = navigator.onLine;
 
-      if (!response.ok || !data.success) {
-        console.error('Order creation failed:', {
-          status: response.status,
-          data,
-          orderData,
-        });
-        const errorMessage = data.error || data.details || 'Failed to create order';
-        if (data.errorName || data.details) {
-          console.error('Error details:', {
-            name: data.errorName,
-            details: data.details,
+      if (navigator.onLine) {
+        // Verify with actual network request
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          await fetch('/api/branches', {
+            method: 'HEAD',
+            signal: controller.signal,
+            cache: 'no-store',
           });
+          clearTimeout(timeoutId);
+          isActuallyOnline = true;
+          console.log('[Order] Network check passed, trying API...');
+        } catch (netError) {
+          console.log('[Order] Network check failed, assuming offline:', netError.message);
+          isActuallyOnline = false;
         }
-        throw new Error(errorMessage);
       }
 
-      setReceiptData(data.order);
-      setLastOrderNumber(data.order.orderNumber);
-      clearCart();
-      setShowReceipt(true);
-      setDeliveryAddress('');
-      setDeliveryArea('');
-      setSelectedCourierId('none');
-      // Clear customer selection for all order types
-      setSelectedAddress(null);
-      // Clear loyalty redemption
-      setRedeemedPoints(0);
-      setLoyaltyDiscount(0);
+      if (isActuallyOnline) {
+        // Try API first
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderData),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          setReceiptData(data.order);
+          setLastOrderNumber(data.order.orderNumber);
+          clearCart();
+          setShowReceipt(true);
+          setDeliveryAddress('');
+          setDeliveryArea('');
+          setSelectedCourierId('none');
+          // Clear customer selection for all order types
+          setSelectedAddress(null);
+          // Clear loyalty redemption
+          setRedeemedPoints(0);
+          setLoyaltyDiscount(0);
+        } else {
+          // API failed - check if it's a network error
+          const isNetworkError = !response.ok && (
+            response.status === 0 || // Network error
+            response.type === 'error' ||
+            response.statusText === 'Failed to fetch' ||
+            data.error?.includes('Failed to fetch') ||
+            data.error?.includes('network') ||
+            data.error?.includes('ENOTFOUND') ||
+            data.error?.includes('ERR_NAME_NOT_RESOLVED') ||
+            data.error?.includes('TypeError') ||
+            data.error?.includes('Failed to fetch\n') ||
+            data.error?.includes('net::ERR_NAME_NOT_RESOLVED')
+          );
+
+          if (isNetworkError) {
+            console.log('[Order] Network error detected (API), trying offline mode');
+            try {
+              const result = await createOrderOffline(orderData, currentShift);
+              setReceiptData(result.order);
+              setLastOrderNumber(result.order.orderNumber);
+              clearCart();
+              setShowReceipt(true);
+              setDeliveryAddress('');
+              setDeliveryArea('');
+              setSelectedCourierId('none');
+              setSelectedAddress(null);
+              setRedeemedPoints(0);
+              setLoyaltyDiscount(0);
+              alert('Order created (offline mode - will sync when online)');
+            } catch (offlineError) {
+              console.error('[Order] Offline order creation failed:', offlineError);
+              throw new Error(`Failed to create order offline: ${offlineError instanceof Error ? offlineError.message : String(offlineError)}`);
+            }
+          } else {
+            console.error('Order creation failed:', {
+              status: response.status,
+              data,
+              orderData,
+            });
+            const errorMessage = data.error || data.details || 'Failed to create order';
+            if (data.errorName || data.details) {
+              console.error('Error details:', {
+                name: data.errorName,
+                details: data.details,
+              });
+            }
+            throw new Error(errorMessage);
+          }
+        }
+      } else {
+        // Offline mode - create order locally
+        console.log('[Order] Offline mode detected, creating order locally');
+        try {
+          const result = await createOrderOffline(orderData, currentShift);
+          setReceiptData(result.order);
+          setLastOrderNumber(result.order.orderNumber);
+          clearCart();
+          setShowReceipt(true);
+          setDeliveryAddress('');
+          setDeliveryArea('');
+          setSelectedCourierId('none');
+          setSelectedAddress(null);
+          setRedeemedPoints(0);
+          setLoyaltyDiscount(0);
+          alert('Order created (offline mode - will sync when online)');
+        } catch (offlineError) {
+          console.error('[Order] Offline order creation failed:', offlineError);
+          throw new Error(`Failed to create order offline: ${offlineError instanceof Error ? offlineError.message : String(offlineError)}`);
+        }
+      }
     } catch (error) {
       console.error('Checkout error:', error);
       alert(error instanceof Error ? error.message : 'Failed to process order');
