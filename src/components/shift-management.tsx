@@ -171,10 +171,19 @@ export default function ShiftManagement() {
     }
   );
 
+  // Log when selectedBranch changes
+  useEffect(() => {
+    console.log('[Shift Management] selectedBranch changed to:', selectedBranch);
+    if (selectedBranch) {
+      console.log('[Shift Management] Shift fetching is now enabled');
+    }
+  }, [selectedBranch]);
+
   // Update branches from offline data
   useEffect(() => {
+    console.log('[Shift Management] branchesData changed:', branchesData);
     if (branchesData) {
-      const branchesList = Array.isArray(branchesData) 
+      const branchesList = Array.isArray(branchesData)
         ? branchesData.map((branch: any) => ({
             id: branch.id,
             name: branch.branchName,
@@ -183,6 +192,7 @@ export default function ShiftManagement() {
             id: branch.id,
             name: branch.branchName,
           }));
+      console.log('[Shift Management] branchesList:', branchesList);
       setBranches(branchesList);
     }
   }, [branchesData]);
@@ -265,10 +275,18 @@ export default function ShiftManagement() {
 
   // Load user on mount and set default branch
   useEffect(() => {
+    console.log('[Shift Management] User or branches changed:', {
+      user: user ? { id: user.id, username: user.username, role: user.role, branchId: user.branchId } : 'no user',
+      branches,
+      branchesLength: branches.length
+    });
+
     if (user) {
       if (user.role === 'ADMIN' && branches.length > 0) {
+        console.log('[Shift Management] Setting first branch for admin:', branches[0]);
         setSelectedBranch(branches[0].id);
       } else if (user.branchId) {
+        console.log('[Shift Management] Setting user branch:', user.branchId);
         setSelectedBranch(user.branchId);
       }
     }

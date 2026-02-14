@@ -68,7 +68,7 @@ export function useOfflineData<T>(
 
         if (response.ok) {
           const result = await response.json();
-          const data = result.data || result.menuItems || result.categories || result.orders || result.shifts || result.users || result;
+          const data = result.data || result.branches || result.menuItems || result.categories || result.orders || result.shifts || result.users || result;
           setData(data);
           console.log(`[useOfflineData] API fetch successful: ${apiEndpoint}`);
 
