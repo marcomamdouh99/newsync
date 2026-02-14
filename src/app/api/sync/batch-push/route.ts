@@ -92,11 +92,11 @@ export async function POST(request: NextRequest) {
       await db.syncHistory.create({
         data: {
           branchId,
-          direction: SyncDirection.UP,
+          syncDirection: SyncDirection.UP,
           status: PrismaSyncStatus.COMPLETED,
-          recordsSynced: results.processed,
-          startedAt: new Date(operations[0].timestamp),
-          completedAt: new Date(),
+          recordsAffected: results.processed,
+          syncStartedAt: new Date(operations[0].timestamp),
+          syncCompletedAt: new Date(),
         },
       });
     }
