@@ -203,28 +203,64 @@ export default function ShiftManagement() {
     console.log('[Shift Management] selectedBranch:', selectedBranch);
 
     if (shiftsData && selectedBranch) {
-      const allShifts = Array.isArray(shiftsData) ? shiftsData : (shiftsData.shifts || []);
-      console.log('[Shift Management] allShifts:', allShifts);
+      const apiShifts = Array.isArray(shiftsData) ? shiftsData : (shiftsData.shifts || []);
+      console.log('[Shift Management] API shifts:', apiShifts);
 
-      // Filter shifts by branch and status
-      const filtered = allShifts.filter((shift: any) => {
-        console.log('[Shift Management] Checking shift:', { id: shift.id, branchId: shift.branchId, selectedBranch });
+      // Also fetch offline shifts from IndexedDB to merge with API shifts
+      const mergeShifts = async () => {
+        try {
+          const { localStorageService } = await import('@/lib/storage/local-storage');
+          await localStorageService.init();
+          const offlineShifts = await localStorageService.getAllShifts();
+          console.log('[Shift Management] Offline shifts:', offlineShifts);
 
-        if (shift.branchId !== selectedBranch) return false;
-        if (selectedStatus && selectedStatus !== 'all') {
-          const isOpen = !shift.isClosed;
-          if (selectedStatus === 'open' && !isOpen) return false;
-          if (selectedStatus === 'closed' && isOpen) return false;
+          // Combine API shifts and offline shifts, avoiding duplicates
+          const apiShiftIds = new Set(apiShifts.map((s: any) => s.id));
+          const uniqueOfflineShifts = offlineShifts.filter((s: any) => !apiShiftIds.has(s.id));
+
+          const allShifts = [...apiShifts, ...uniqueOfflineShifts];
+          console.log('[Shift Management] Combined shifts:', allShifts);
+
+          // Filter shifts by branch and status
+          const filtered = allShifts.filter((shift: any) => {
+            console.log('[Shift Management] Checking shift:', { id: shift.id, branchId: shift.branchId, selectedBranch });
+
+            if (shift.branchId !== selectedBranch) return false;
+            if (selectedStatus && selectedStatus !== 'all') {
+              const isOpen = !shift.isClosed;
+              if (selectedStatus === 'open' && !isOpen) return false;
+              if (selectedStatus === 'closed' && isOpen) return false;
+            }
+            if (selectedCashier && selectedCashier !== 'all' && shift.cashierId !== selectedCashier) {
+              return false;
+            }
+            return true;
+          });
+
+          console.log('[Shift Management] Filtered shifts:', filtered);
+          setShifts(filtered);
+          setLoading(false);
+        } catch (error) {
+          console.error('[Shift Management] Failed to merge offline shifts:', error);
+          // Fallback to just API shifts if offline merge fails
+          const filtered = apiShifts.filter((shift: any) => {
+            if (shift.branchId !== selectedBranch) return false;
+            if (selectedStatus && selectedStatus !== 'all') {
+              const isOpen = !shift.isClosed;
+              if (selectedStatus === 'open' && !isOpen) return false;
+              if (selectedStatus === 'closed' && isOpen) return false;
+            }
+            if (selectedCashier && selectedCashier !== 'all' && shift.cashierId !== selectedCashier) {
+              return false;
+            }
+            return true;
+          });
+          setShifts(filtered);
+          setLoading(false);
         }
-        if (selectedCashier && selectedCashier !== 'all' && shift.cashierId !== selectedCashier) {
-          return false;
-        }
-        return true;
-      });
+      };
 
-      console.log('[Shift Management] Filtered shifts:', filtered);
-      setShifts(filtered);
-      setLoading(false);
+      mergeShifts();
     }
   }, [shiftsData, selectedBranch, selectedStatus, selectedCashier]);
 
@@ -1208,16 +1244,24 @@ export default function ShiftManagement() {
                           </Badge>
                         </TableCell>
                         <TableCell>
-                          <Badge
-                            variant={shift.isClosed ? 'secondary' : 'default'}
-                            className={
-                              !shift.isClosed
-                                ? 'bg-green-600 hover:bg-green-700'
-                                : ''
-                            }
-                          >
-                            {shift.isClosed ? 'Closed' : 'Open'}
-                          </Badge>
+                          <div className="flex items-center gap-2">
+                            <Badge
+                              variant={shift.isClosed ? 'secondary' : 'default'}
+                              className={
+                                !shift.isClosed
+                                  ? 'bg-green-600 hover:bg-green-700'
+                                  : ''
+                              }
+                            >
+                              {shift.isClosed ? 'Closed' : 'Open'}
+                            </Badge>
+                            {/* Show offline indicator for shifts that haven't synced yet */}
+                            {shift.id.startsWith('temp-') && (
+                              <Badge variant="outline" className="text-amber-600 border-amber-600">
+                                Offline
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell className="text-right">
                           {formatCurrency(shift.openingCash, currency)}
