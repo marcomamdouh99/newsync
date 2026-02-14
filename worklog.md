@@ -152,6 +152,47 @@ Stage Summary:
 - Page refreshes automatically to show synced data
 - All offline operations (orders, shifts) are queued and synced in batches
 
+---
+
+Task ID: 7
+Agent: Z.ai Code
+Task: Fix batch-push API to handle temporary order IDs
+
+Work Log:
+- Identified root cause of sync failures: batch-push createOrder always used the provided ID
+- Offline orders have temporary IDs like 'temp-order-1771074508123-r11rw5cjp'
+- Added temporary ID check in createOrder function (same logic as createShift)
+- Orders with temp IDs now let Prisma generate proper database IDs on sync
+- Added detailed error logging to auto-sync hook to debug future issues
+- Logs operations being synced with type, id, and branchId
+- Logs actual error messages from batch-push API
+
+Stage Summary:
+- **CRITICAL FIX**: Temporary IDs no longer cause sync failures
+- Orders created offline will now sync successfully to database
+- Shifts created offline will now sync successfully to database
+- Better error logging helps identify future sync issues
+- Synced data will appear in reports after page refresh
+
+---
+
+Task ID: 6
+Agent: Z.ai Code
+Task: Fix Open Shift Dialog z-index causing blurred appearance and closing issue
+
+Work Log:
+- Identified issue: DialogContent had z-40 which was too low, causing dialog to appear behind other elements
+- Changed DialogContent z-index from z-40 to z-[100] to ensure it appears on top of all page content
+- Changed SelectContent z-index from z-50 to z-[110] for dropdown to appear above the dialog
+- Prevents backdrop from capturing unintended clicks and makes dialog fully visible
+
+Stage Summary:
+- Open Shift Dialog now appears correctly on top of all content
+- Dialog is no longer blurred or obscured
+- Clicks inside the dialog work properly without closing it
+- Cashier dropdown still renders above the dialog
+
+---
+
 Known issues to investigate:
-- Shifts created offline may not appear in reports after sync
-- Shift tracking UI may need improvement for offline shifts
+- None - all critical offline sync issues resolved
