@@ -30,6 +30,11 @@ export function useAutoSync(branchId?: string | null) {
         }
 
         console.log(`[AutoSync] Found ${operations.length} pending operations, syncing...`);
+        console.log('[AutoSync] Operations to sync:', operations.map((op: any) => ({
+          type: op.type,
+          id: op.id,
+          branchId: op.branchId,
+        })));
 
         // Group operations by branch
         const operationsByBranch = new Map<string, any[]>();
@@ -46,6 +51,13 @@ export function useAutoSync(branchId?: string | null) {
         let totalFailed = 0;
 
         for (const [bId, branchOps] of operationsByBranch.entries()) {
+          console.log(`[AutoSync] Syncing ${branchOps.length} operations for branch ${bId}`);
+          console.log('[AutoSync] Sending data:', branchOps.map((op: any) => ({
+            type: op.type,
+            timestamp: op.timestamp,
+            dataKeys: Object.keys(op.data),
+          })));
+
           try {
             const response = await fetch('/api/sync/batch-push', {
               method: 'POST',
@@ -73,6 +85,7 @@ export function useAutoSync(branchId?: string | null) {
               }
             } else {
               console.error(`[AutoSync] Sync failed for branch ${bId}:`, data);
+              console.error(`[AutoSync] Errors:`, data.errors);
               totalFailed += branchOps.length;
             }
           } catch (error) {
