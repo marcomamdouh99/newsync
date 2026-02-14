@@ -85,6 +85,24 @@ Stage Summary:
 
 ---
 
+Task ID: 6
+Agent: Z.ai Code
+Task: Fix Open Shift Dialog z-index causing blurred appearance and closing issue
+
+Work Log:
+- Identified issue: DialogContent had z-40 which was too low, causing dialog to appear behind other elements
+- Changed DialogContent z-index from z-40 to z-[100] to ensure it appears on top of all page content
+- Changed SelectContent z-index from z-50 to z-[110] for dropdown to appear above the dialog
+- Prevents backdrop from capturing unintended clicks and makes dialog fully visible
+
+Stage Summary:
+- Open Shift Dialog now appears correctly on top of all content
+- Dialog is no longer blurred or obscured
+- Clicks inside the dialog work properly without closing it
+- Cashier dropdown still renders above the dialog
+
+---
+
 Task ID: 4
 Agent: Z.ai Code
 Task: Add offline support for order creation in POS
