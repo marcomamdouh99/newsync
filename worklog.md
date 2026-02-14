@@ -91,12 +91,13 @@ Task: Add offline support for order creation in POS
 
 Work Log:
 - Identified issue: Order creation fails with "net::ERR_NAME_NOT_RESOLVED" when offline
-- Created createOrderOffline() helper function to save orders to IndexedDB when offline
-- Added network connectivity check before API call (similar to shift creation)
-- Added fallback to offline mode when network check fails or API returns network error
-- Order data includes all fields: customer info, delivery info, loyalty redemption, shift ID
-- Orders created offline generate temporary IDs and order numbers
-- Offline orders are queued for sync when connection is restored
+- Created createOrderOffline() helper function for local order creation
+- Added network connectivity check before API call (HEAD request to /api/branches)
+- Fallback to offline mode when network is unavailable or API fails with network error
+- Generate temporary order IDs and order numbers for offline orders
+- Queue offline orders for sync when connection is restored
+- Support all order types (dine-in, take-away, delivery) with customer and delivery info
+- Include loyalty redemption data in offline orders
 
 Stage Summary:
 - Orders can now be created offline and will sync when online
@@ -104,3 +105,35 @@ Stage Summary:
 - Proper error handling with user-friendly alerts
 - Order numbers are generated locally for offline orders
 - All order types supported: dine-in, take-away, delivery
+
+---
+
+Task ID: 5
+Agent: Z.ai Code
+Task: Fix offline order sync and add auto-sync mechanism
+
+Work Log:
+- Fixed order data structure to match API expectations:
+  - Changed total to totalAmount
+  - Added paymentStatus field
+  - Items now include unitPrice and totalPrice
+- Updated createOrderOffline to accept cart items with prices
+- Added offline fallback to customer search (searches IndexedDB when API fails)
+- Created useAutoSync hook that:
+  - Listens for online/offline events
+  - When coming online, checks for pending operations in IndexedDB
+  - Sends them to the batch-push API grouped by branch
+  - Clears synced operations from IndexedDB
+  - Auto-refreshes page after successful sync
+- Added useAutoSync to POS interface component
+
+Stage Summary:
+- Offline orders now sync properly when coming back online
+- Customers can be searched by phone or name even when offline
+- Automatic sync triggers when connection is restored
+- Page refreshes automatically to show synced data
+- All offline operations (orders, shifts) are queued and synced in batches
+
+Known issues to investigate:
+- Shifts created offline may not appear in reports after sync
+- Shift tracking UI may need improvement for offline shifts
