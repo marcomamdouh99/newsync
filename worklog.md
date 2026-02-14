@@ -103,96 +103,24 @@ Stage Summary:
 
 ---
 
+Task ID: 8
+Agent: Z.ai Code
+Task: Make offline shifts visible in Shifts tab even when online
+
+Work Log:
+- Identified issue: When online, Shifts tab only showed API shifts, not offline shifts from IndexedDB
+- Updated shifts handling to merge both API shifts and offline shifts
+- Modified useEffect to fetch shifts from IndexedDB and combine with API data
+- Avoid duplicate shifts by checking for existing IDs
+- Added visual 'Offline' badge for shifts with temporary IDs
+- Helps users identify which shifts haven't synced yet
+
+Stage Summary:
+- Users can now see and track their offline-created shifts even when online
+- Offline shifts show 'Offline' badge (amber color) to indicate they haven't synced
+- When shift syncs successfully, it will appear without the 'Offline' badge
+- Shifts are merged from both sources: API (database) and IndexedDB (offline)
+
+---
+
 Task ID: 4
-Agent: Z.ai Code
-Task: Add offline support for order creation in POS
-
-Work Log:
-- Identified issue: Order creation fails with "net::ERR_NAME_NOT_RESOLVED" when offline
-- Created createOrderOffline() helper function for local order creation
-- Added network connectivity check before API call (HEAD request to /api/branches)
-- Fallback to offline mode when network is unavailable or API fails with network error
-- Generate temporary order IDs and order numbers for offline orders
-- Queue offline orders for sync when connection is restored
-- Support all order types (dine-in, take-away, delivery) with customer and delivery info
-- Include loyalty redemption data in offline orders
-
-Stage Summary:
-- Orders can now be created offline and will sync when online
-- Network detection uses HEAD request to verify actual connectivity
-- Proper error handling with user-friendly alerts
-- Order numbers are generated locally for offline orders
-- All order types supported: dine-in, take-away, delivery
-
----
-
-Task ID: 5
-Agent: Z.ai Code
-Task: Fix offline order sync and add auto-sync mechanism
-
-Work Log:
-- Fixed order data structure to match API expectations:
-  - Changed total to totalAmount
-  - Added paymentStatus field
-  - Items now include unitPrice and totalPrice
-- Updated createOrderOffline to accept cart items with prices
-- Added offline fallback to customer search (searches IndexedDB when API fails)
-- Created useAutoSync hook that:
-  - Listens for online/offline events
-  - When coming online, checks for pending operations in IndexedDB
-  - Sends them to the batch-push API grouped by branch
-  - Clears synced operations from IndexedDB
-  - Auto-refreshes page after successful sync
-- Added useAutoSync to POS interface component
-
-Stage Summary:
-- Offline orders now sync properly when coming back online
-- Customers can be searched by phone or name even when offline
-- Automatic sync triggers when connection is restored
-- Page refreshes automatically to show synced data
-- All offline operations (orders, shifts) are queued and synced in batches
-
----
-
-Task ID: 7
-Agent: Z.ai Code
-Task: Fix batch-push API to handle temporary order IDs
-
-Work Log:
-- Identified root cause of sync failures: batch-push createOrder always used the provided ID
-- Offline orders have temporary IDs like 'temp-order-1771074508123-r11rw5cjp'
-- Added temporary ID check in createOrder function (same logic as createShift)
-- Orders with temp IDs now let Prisma generate proper database IDs on sync
-- Added detailed error logging to auto-sync hook to debug future issues
-- Logs operations being synced with type, id, and branchId
-- Logs actual error messages from batch-push API
-
-Stage Summary:
-- **CRITICAL FIX**: Temporary IDs no longer cause sync failures
-- Orders created offline will now sync successfully to database
-- Shifts created offline will now sync successfully to database
-- Better error logging helps identify future sync issues
-- Synced data will appear in reports after page refresh
-
----
-
-Task ID: 6
-Agent: Z.ai Code
-Task: Fix Open Shift Dialog z-index causing blurred appearance and closing issue
-
-Work Log:
-- Identified issue: DialogContent had z-40 which was too low, causing dialog to appear behind other elements
-- Changed DialogContent z-index from z-40 to z-[100] to ensure it appears on top of all page content
-- Changed SelectContent z-index from z-50 to z-[110] for dropdown to appear above the dialog
-- Prevents backdrop from capturing unintended clicks and makes dialog fully visible
-
-Stage Summary:
-- Open Shift Dialog now appears correctly on top of all content
-- Dialog is no longer blurred or obscured
-- Clicks inside the dialog work properly without closing it
-- Cashier dropdown still renders above the dialog
-
----
-
-Known issues to investigate:
-- None - all critical offline sync issues resolved
