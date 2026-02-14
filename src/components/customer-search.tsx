@@ -66,6 +66,7 @@ export default function CustomerSearch({ onAddressSelect, selectedAddress, deliv
     setLoading(true);
     setHasSearched(true);
     try {
+      // Try API first
       const response = await fetch(`/api/customers?search=${encodeURIComponent(searchQuery)}`);
       const data = await response.json();
       if (response.ok && data.customers) {
@@ -75,7 +76,45 @@ export default function CustomerSearch({ onAddressSelect, selectedAddress, deliv
       }
     } catch (error) {
       console.error('Search error:', error);
-      setSearchResults([]);
+
+      // Fallback to offline search in IndexedDB
+      try {
+        const { localStorageService } = await import('@/lib/storage/local-storage');
+        await localStorageService.init();
+
+        const allCustomers = await localStorageService.getAllCustomers();
+        const allAddresses = await localStorageService.getAllCustomerAddresses();
+
+        // Create a map of customer IDs to their addresses
+        const customerAddressMap = new Map<string, any[]>();
+        allAddresses.forEach((addr: any) => {
+          if (!customerAddressMap.has(addr.customerId)) {
+            customerAddressMap.set(addr.customerId, []);
+          }
+          customerAddressMap.get(addr.customerId)!.push(addr);
+        });
+
+        // Search by name or phone
+        const query = searchQuery.toLowerCase();
+        const matchedCustomers = allCustomers
+          .filter((customer: any) => {
+            return (
+              customer.name?.toLowerCase().includes(query) ||
+              customer.phone?.toLowerCase().includes(query)
+            );
+          })
+          .map((customer: any) => ({
+            ...customer,
+            addresses: customerAddressMap.get(customer.id) || [],
+            totalOrders: 0, // Would need to track this separately
+          }));
+
+        setSearchResults(matchedCustomers);
+        console.log('[CustomerSearch] Found customers offline:', matchedCustomers.length);
+      } catch (offlineError) {
+        console.error('[CustomerSearch] Offline search failed:', offlineError);
+        setSearchResults([]);
+      }
     } finally {
       setLoading(false);
     }

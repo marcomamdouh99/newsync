@@ -24,11 +24,13 @@ import { formatCurrency } from '@/lib/utils';
 import { ReceiptViewer } from '@/components/receipt-viewer';
 import CustomerSearch from '@/components/customer-search';
 import { useOfflineData, offlineDataFetchers } from '@/hooks/use-offline-data';
+import { useAutoSync } from '@/hooks/use-auto-sync';
 
 // Helper function to create order offline
-async function createOrderOffline(orderData: any, shift: any): Promise<any> {
+async function createOrderOffline(orderData: any, shift: any, cartItems: CartItem[]): Promise<any> {
   try {
     console.log('[Order] Creating order offline, orderData:', orderData);
+    console.log('[Order] Cart items:', cartItems);
 
     // Import localStorageService
     const { localStorageService } = await import('@/lib/storage/local-storage');
@@ -48,16 +50,57 @@ async function createOrderOffline(orderData: any, shift: any): Promise<any> {
       return order.orderNumber ? Math.max(max, order.orderNumber) : max;
     }, 0);
 
-    // Create order object
+    // Prepare items in the format expected by the API
+    const preparedItems = cartItems.map((cartItem) => {
+      const unitPrice = cartItem.price || 0;
+      const totalPrice = unitPrice * cartItem.quantity;
+
+      return {
+        menuItemId: cartItem.menuItemId,
+        quantity: cartItem.quantity,
+        menuItemVariantId: cartItem.variantId || null,
+        unitPrice,
+        totalPrice,
+        specialInstructions: null,
+      };
+    });
+
+    // Calculate total amount including tax
+    const taxAmount = orderData.subtotal * (orderData.taxRate || 0.14);
+    const totalAmount = orderData.total || (orderData.subtotal + taxAmount + (orderData.deliveryFee || 0) - (orderData.loyaltyDiscount || 0));
+
+    // Create order object with fields matching API expectations
     const newOrder = {
       id: tempId,
-      ...orderData,
+      branchId: orderData.branchId,
       orderNumber: lastOrderNum + 1,
+      customerId: orderData.customerId || null,
+      orderType: orderData.orderType,
+      totalAmount,
       status: 'completed',
+      paymentStatus: 'paid',
+      paymentMethod: orderData.paymentMethod,
+      notes: orderData.notes || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       // Include shift info
       shiftId: shift.id,
+      // Store additional fields that will be synced separately
+      _offlineData: {
+        items: preparedItems,
+        subtotal: orderData.subtotal,
+        taxRate: orderData.taxRate,
+        tax: taxAmount,
+        deliveryFee: orderData.deliveryFee || 0,
+        loyaltyPointsRedeemed: orderData.loyaltyPointsRedeemed || 0,
+        loyaltyDiscount: orderData.loyaltyDiscount || 0,
+        deliveryAddress: orderData.deliveryAddress || null,
+        deliveryAreaId: orderData.deliveryAreaId || null,
+        courierId: orderData.courierId || null,
+        customerAddressId: orderData.customerAddressId || null,
+        customerPhone: orderData.customerPhone || null,
+        customerName: orderData.customerName || null,
+      },
     };
 
     console.log('[Order] Created order object:', newOrder);
@@ -72,6 +115,9 @@ async function createOrderOffline(orderData: any, shift: any): Promise<any> {
       data: {
         ...orderData,
         tempId,
+        items: preparedItems,
+        totalAmount,
+        paymentStatus: 'paid',
       },
       branchId: orderData.branchId,
       retryCount: 0,
@@ -391,6 +437,10 @@ export default function POSInterface() {
       setSelectedBranch(branches[0].id);
     }
   }, [user, branches, selectedBranch]);
+
+  // Auto-sync when connection is restored
+  const currentBranchId = user?.role === 'CASHIER' ? user?.branchId : selectedBranch;
+  useAutoSync(currentBranchId);
 
   // Fetch current shift for cashiers
   useEffect(() => {
@@ -917,7 +967,7 @@ export default function POSInterface() {
           if (isNetworkError) {
             console.log('[Order] Network error detected (API), trying offline mode');
             try {
-              const result = await createOrderOffline(orderData, currentShift);
+              const result = await createOrderOffline(orderData, currentShift, cart);
               setReceiptData(result.order);
               setLastOrderNumber(result.order.orderNumber);
               clearCart();
@@ -953,7 +1003,7 @@ export default function POSInterface() {
         // Offline mode - create order locally
         console.log('[Order] Offline mode detected, creating order locally');
         try {
-          const result = await createOrderOffline(orderData, currentShift);
+          const result = await createOrderOffline(orderData, currentShift, cart);
           setReceiptData(result.order);
           setLastOrderNumber(result.order.orderNumber);
           clearCart();
