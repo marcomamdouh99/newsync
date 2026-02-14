@@ -83,7 +83,7 @@ async function createOrderOffline(orderData: any, shift: any, cartItems: CartIte
       notes: orderData.notes || null,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      // Include shift info
+      // Include shift ID to associate order with the shift
       shiftId: shift.id,
       // Store additional fields that will be synced separately
       _offlineData: {

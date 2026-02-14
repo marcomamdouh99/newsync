@@ -166,20 +166,29 @@ async function processOperation(operation: SyncOperation, branchId: string): Pro
  * Create order
  */
 async function createOrder(data: any, branchId: string): Promise<void> {
+  // Prepare order data
+  const orderData: any = {
+    branchId,
+    orderNumber: data.orderNumber,
+    customerId: data.customerId || null,
+    orderType: data.orderType,
+    totalAmount: data.totalAmount,
+    status: data.status,
+    paymentStatus: data.paymentStatus,
+    paymentMethod: data.paymentMethod || null,
+    notes: data.notes || null,
+    createdAt: new Date(data.createdAt),
+    updatedAt: new Date(data.updatedAt),
+  };
+
+  // Only use provided ID if it's not a temporary ID
+  if (!data.id || !data.id.startsWith('temp-')) {
+    orderData.id = data.id;
+  }
+
   await db.order.create({
     data: {
-      id: data.id,
-      branchId,
-      orderNumber: data.orderNumber,
-      customerId: data.customerId || null,
-      orderType: data.orderType,
-      totalAmount: data.totalAmount,
-      status: data.status,
-      paymentStatus: data.paymentStatus,
-      paymentMethod: data.paymentMethod || null,
-      notes: data.notes || null,
-      createdAt: new Date(data.createdAt),
-      updatedAt: new Date(data.updatedAt),
+      ...orderData,
       items: {
         create: data.items.map((item: any) => ({
           menuItemId: item.menuItemId,
