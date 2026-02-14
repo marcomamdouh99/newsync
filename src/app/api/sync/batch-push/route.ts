@@ -286,23 +286,49 @@ async function createWaste(data: any, branchId: string): Promise<void> {
  * Create shift
  */
 async function createShift(data: any, branchId: string): Promise<void> {
+  // Validate required fields
+  if (!data.cashierId || data.cashierId === 'all') {
+    throw new Error('Invalid cashierId: cannot be empty or "all"');
+  }
+
+  // Validate and parse startTime
+  let startTime: Date;
+  if (!data.startTime) {
+    throw new Error('Missing startTime');
+  }
+
+  const parsedStartTime = new Date(data.startTime);
+  if (isNaN(parsedStartTime.getTime())) {
+    throw new Error(`Invalid startTime: ${data.startTime}`);
+  }
+  startTime = parsedStartTime;
+
+  // Parse endTime if provided
+  let endTime: Date | null = null;
+  if (data.endTime) {
+    const parsedEndTime = new Date(data.endTime);
+    if (!isNaN(parsedEndTime.getTime())) {
+      endTime = parsedEndTime;
+    }
+  }
+
   // If this is an offline-created shift with tempId, don't specify id - let Prisma generate one
   const shiftData: any = {
     branchId,
     cashierId: data.cashierId,
-    startTime: new Date(data.startTime),
-    endTime: data.endTime ? new Date(data.endTime) : null,
+    startTime,
+    endTime,
     isClosed: data.isClosed || false,
     openingCash: data.openingCash || 0,
     closingCash: data.closingCash || 0,
     notes: data.notes || null,
   };
-  
+
   // Only use provided ID if it's not a temporary ID
   if (!data.id || !data.id.startsWith('temp-')) {
     shiftData.id = data.id;
   }
-  
+
   await db.shift.create({ data: shiftData });
 }
 

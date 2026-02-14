@@ -244,6 +244,20 @@ class LocalStorageService {
   }
 
   /**
+   * Get all operations (alias for getPendingOperations)
+   */
+  async getAllOperations(): Promise<SyncOperation[]> {
+    return this.getPendingOperations();
+  }
+
+  /**
+   * Delete operation by ID (alias for removeOperation)
+   */
+  async deleteOperation(operationId: string): Promise<void> {
+    return this.removeOperation(operationId);
+  }
+
+  /**
    * Get operations by type
    */
   async getOperationsByType(type: OperationType): Promise<SyncOperation[]> {

@@ -556,10 +556,19 @@ export default function ShiftManagement() {
       return;
     }
 
-    const cashierId = user?.role === 'BRANCH_MANAGER' ? user.id : selectedCashier;
+    // Determine cashier ID
+    let cashierId: string;
+    if (user?.role === 'BRANCH_MANAGER') {
+      // For branch managers, allow them to open shift for themselves
+      cashierId = user.id;
+    } else {
+      // For admins, use selected cashier but validate it's not "all"
+      cashierId = selectedCashier;
+    }
 
-    if (!cashierId) {
-      alert('Please select a cashier');
+    // Validate cashierId is set and not "all"
+    if (!cashierId || cashierId === 'all' || cashierId === '') {
+      alert('Please select a valid cashier');
       return;
     }
 
@@ -609,9 +618,9 @@ export default function ShiftManagement() {
         shiftData,
         isOffline: !navigator.onLine,
       });
-      
+
       // Network error - try offline fallback
-      if (true) {
+      if (!navigator.onLine || (error instanceof Error && error.message.includes('Failed to fetch'))) {
         console.log('[Shift - Manager] Offline mode, trying to create shift locally');
         try {
           await createShiftOffline(shiftData, user);
@@ -626,7 +635,7 @@ export default function ShiftManagement() {
           alert(`Failed to create shift offline: ${offlineError instanceof Error ? offlineError.message : String(offlineError)}`);
         }
       }
-      
+
       alert(`Failed to open shift: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
