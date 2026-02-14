@@ -836,7 +836,7 @@ export default function ShiftManagement() {
                 </Button>
               )}
 
-              <Button variant="outline" onClick={fetchShifts} disabled={loading}>
+              <Button variant="outline" onClick={() => refetchShifts()} disabled={loading}>
                 <Clock className="h-4 w-4 mr-2" />
                 Refresh
               </Button>
