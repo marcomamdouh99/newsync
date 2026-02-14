@@ -189,11 +189,17 @@ export default function ShiftManagement() {
 
   // Update shifts from offline data
   useEffect(() => {
+    console.log('[Shift Management] shiftsData changed:', shiftsData);
+    console.log('[Shift Management] selectedBranch:', selectedBranch);
+
     if (shiftsData && selectedBranch) {
       const allShifts = Array.isArray(shiftsData) ? shiftsData : (shiftsData.shifts || []);
-      
+      console.log('[Shift Management] allShifts:', allShifts);
+
       // Filter shifts by branch and status
       const filtered = allShifts.filter((shift: any) => {
+        console.log('[Shift Management] Checking shift:', { id: shift.id, branchId: shift.branchId, selectedBranch });
+
         if (shift.branchId !== selectedBranch) return false;
         if (selectedStatus && selectedStatus !== 'all') {
           const isOpen = !shift.isClosed;
@@ -205,7 +211,8 @@ export default function ShiftManagement() {
         }
         return true;
       });
-      
+
+      console.log('[Shift Management] Filtered shifts:', filtered);
       setShifts(filtered);
       setLoading(false);
     }
@@ -370,6 +377,9 @@ export default function ShiftManagement() {
   };
 
   const handleOpenShift = async () => {
+    console.log('[Shift Management] handleOpenShift called');
+    console.log('[Shift Management] user:', user);
+
     if (user?.role === 'CASHIER') {
       if (!user?.branchId) {
         alert('Your account is not assigned to a branch. Please contact your manager.');
@@ -384,6 +394,8 @@ export default function ShiftManagement() {
         openingCash: parseFloat(openingCash) || 0,
         notes: shiftNotes,
       };
+
+      console.log('[Shift Management] Shift data to send:', shiftData);
 
       try {
         // Check actual network connectivity before trying API
