@@ -40,6 +40,7 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 local-*
+!src/lib/storage/local-storage.ts
 .claude
 .z-ai-config
 dev.log
