@@ -285,7 +285,9 @@ export default function ShiftManagement() {
       if (user.role === 'ADMIN' && branches.length > 0) {
         // For admins, check if there are cached shifts in IndexedDB
         // to find which branch has shifts, otherwise default to first branch
-        localStorageService.getAllShifts().then((cachedShifts) => {
+        import('@/lib/storage/local-storage').then(({ localStorageService }) => {
+          return localStorageService.init().then(() => localStorageService.getAllShifts());
+        }).then((cachedShifts) => {
           console.log('[Shift Management] Cached shifts for admin branch selection:', cachedShifts.length);
 
           if (cachedShifts.length > 0) {
