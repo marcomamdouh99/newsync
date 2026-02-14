@@ -162,8 +162,9 @@ export default function ShiftManagement() {
 
   // Offline-capable data fetching for shifts
   const { data: shiftsData, refetch: refetchShifts } = useOfflineData(
-    '',
+    '/api/shifts',
     {
+      branchId: selectedBranch,
       fetchFromDB: offlineDataFetchers.shifts,
       enabled: !!selectedBranch,
       deps: [selectedBranch, selectedStatus, selectedCashier],
@@ -240,11 +241,13 @@ export default function ShiftManagement() {
       if (!selectedBranch) return;
 
       try {
-        const response = await fetch(`/api/users?branchId=${selectedBranch}&role=CASHIER`);
+        const response = await fetch(`/api/users?currentUserBranchId=${selectedBranch}&currentUserRole=BRANCH_MANAGER`);
         const data = await response.json();
 
         if (response.ok && data.users) {
-          setCashiers(data.users);
+          // Filter for CASHIER role users on client side
+          const cashiers = data.users.filter((user: any) => user.role === 'CASHIER');
+          setCashiers(cashiers);
         }
       } catch (error) {
         console.error('Failed to fetch cashiers:', error);
@@ -384,8 +387,8 @@ export default function ShiftManagement() {
 
       try {
         // Check actual network connectivity before trying API
-        let isActuallyOnline = !navigator.onLine;
-        
+        let isActuallyOnline = navigator.onLine;
+
         if (navigator.onLine) {
           // Verify with actual network request
           try {
@@ -569,7 +572,7 @@ export default function ShiftManagement() {
         setOpenDialogOpen(false);
         setOpeningCash('');
         setShiftNotes('');
-        fetchShifts();
+        refetchShifts();
       } else {
         // API failed - try offline fallback
         if (!navigator.onLine || !response.ok) {
@@ -579,7 +582,7 @@ export default function ShiftManagement() {
           setOpenDialogOpen(false);
           setOpeningCash('');
           setShiftNotes('');
-          fetchShifts();
+          refetchShifts();
         } else {
           alert(data.error || 'Failed to open shift');
         }
@@ -604,7 +607,7 @@ export default function ShiftManagement() {
           setOpenDialogOpen(false);
           setOpeningCash('');
           setShiftNotes('');
-          fetchShifts();
+          refetchShifts();
           return;
         } catch (offlineError) {
           console.error('[Shift - Manager] Offline shift creation also failed:', offlineError);

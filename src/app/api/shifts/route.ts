@@ -168,12 +168,40 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { branchId, cashierId, openingCash, notes } = body;
 
+    console.log('[Shift API] Creating shift with data:', { branchId, cashierId, openingCash, notes });
+
     if (!branchId || !cashierId) {
+      console.error('[Shift API] Missing required fields:', { branchId, cashierId });
       return NextResponse.json(
         { error: 'Branch ID and Cashier ID are required' },
         { status: 400 }
       );
     }
+
+    // Verify cashier exists
+    console.log('[Shift API] Verifying cashier exists:', cashierId);
+    const cashier = await db.user.findUnique({
+      where: { id: cashierId },
+      select: { id: true, username: true, role: true, isActive: true }
+    });
+
+    if (!cashier) {
+      console.error('[Shift API] Cashier not found:', cashierId);
+      return NextResponse.json(
+        { error: `Cashier with ID ${cashierId} not found. Please try logging out and logging back in.` },
+        { status: 404 }
+      );
+    }
+
+    if (!cashier.isActive) {
+      console.error('[Shift API] Cashier is inactive:', cashierId);
+      return NextResponse.json(
+        { error: 'Cashier account is inactive. Please contact your manager.' },
+        { status: 403 }
+      );
+    }
+
+    console.log('[Shift API] Cashier verified:', { id: cashier.id, username: cashier.username, role: cashier.role });
 
     // Check if there's an open shift for this cashier
     const existingOpenShift = await db.shift.findFirst({

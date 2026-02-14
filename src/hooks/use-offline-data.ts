@@ -29,6 +29,9 @@ export function useOfflineData<T>(
       return;
     }
 
+    // Skip API call if apiEndpoint is empty - use offline data only
+    const shouldSkipAPI = !apiEndpoint || apiEndpoint.trim() === '';
+
     // Better offline detection
     const isActuallyOffline = !navigator.onLine || typeof navigator.onLine !== 'boolean';
 
@@ -36,20 +39,21 @@ export function useOfflineData<T>(
     setError(null);
 
     try {
-      if (isActuallyOffline) {
-        // Offline: Try IndexedDB directly
-        console.log(`[useOfflineData] Offline mode, fetching from IndexedDB: ${apiEndpoint}`);
+      if (isActuallyOffline || shouldSkipAPI) {
+        // Offline or no API endpoint: Try IndexedDB directly
+        const reason = shouldSkipAPI ? 'no API endpoint' : 'offline mode';
+        console.log(`[useOfflineData] ${reason}, fetching from IndexedDB: ${apiEndpoint || '(none)'}`);
 
         if (fetchFromDB) {
           const dbData = await fetchFromDB();
           if (dbData) {
             setData(dbData);
-            console.log(`[useOfflineData] IndexedDB fetch successful: ${apiEndpoint}`);
+            console.log(`[useOfflineData] IndexedDB fetch successful: ${apiEndpoint || '(none)'}`);
           } else {
-            console.warn(`[useOfflineData] No offline data available for: ${apiEndpoint}`);
+            console.warn(`[useOfflineData] No offline data available for: ${apiEndpoint || '(none)'}`);
           }
         } else {
-          console.warn(`[useOfflineData] No offline fetch function provided for: ${apiEndpoint}`);
+          console.warn(`[useOfflineData] No offline fetch function provided for: ${apiEndpoint || '(none)'}`);
         }
       } else {
         // Online: Try API first
@@ -117,19 +121,19 @@ export function useOfflineData<T>(
 
       if (!isNetworkError) {
         // Only log non-network errors as errors
-        console.error(`[useOfflineData] Fetch error for ${apiEndpoint}:`, err);
+        console.error(`[useOfflineData] Fetch error for ${apiEndpoint || '(none)'}:`, err);
       } else {
-        console.log(`[useOfflineData] Network error (likely offline), trying fallback: ${apiEndpoint}`);
+        console.log(`[useOfflineData] Network error (likely offline), trying fallback: ${apiEndpoint || '(none)'}`);
       }
 
       // If API fails, always try offline fallback (regardless of navigator.onLine)
       if (fetchFromDB) {
         try {
-          console.log(`[useOfflineData] API failed, trying IndexedDB fallback: ${apiEndpoint}`);
+          console.log(`[useOfflineData] API failed, trying IndexedDB fallback: ${apiEndpoint || '(none)'}`);
           const dbData = await fetchFromDB();
           if (dbData) {
             setData(dbData);
-            console.log(`[useOfflineData] IndexedDB fallback successful: ${apiEndpoint}`);
+            console.log(`[useOfflineData] IndexedDB fallback successful: ${apiEndpoint || '(none)'}`);
           } else {
             // Only set error if it's not a network error
             if (!isNetworkError) {
