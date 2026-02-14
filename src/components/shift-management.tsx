@@ -469,6 +469,20 @@ export default function ShiftManagement() {
               alert(data.error || 'Failed to open shift');
             }
           }
+        } else {
+          // Offline mode - create shift locally
+          console.log('[Shift] Offline mode detected, creating shift locally');
+          try {
+            await createShiftOffline(shiftData, user);
+            alert('Shift opened (offline mode - will sync when online)');
+            setOpenDialogOpen(false);
+            setOpeningCash('');
+            setShiftNotes('');
+            fetchCurrentShift();
+          } catch (offlineError) {
+            console.error('[Shift] Offline shift creation failed:', offlineError);
+            alert(`Failed to create shift offline: ${offlineError instanceof Error ? offlineError.message : String(offlineError)}`);
+          }
         }
       } catch (error) {
         console.error('[Shift] Failed to open shift, error:', error);
@@ -545,32 +559,70 @@ export default function ShiftManagement() {
     };
 
     try {
-      const response = await fetch('/api/shifts', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(shiftData),
-      });
+      // Check actual network connectivity before trying API
+      let isActuallyOnline = navigator.onLine;
 
-      const data = await response.json();
+      if (navigator.onLine) {
+        // Verify with actual network request
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 3000);
+          await fetch('/api/branches', {
+            method: 'HEAD',
+            signal: controller.signal,
+            cache: 'no-store',
+          });
+          clearTimeout(timeoutId);
+          isActuallyOnline = true;
+          console.log('[Shift - Manager] Network check passed, trying API...');
+        } catch (netError) {
+          console.log('[Shift - Manager] Network check failed, assuming offline:', netError.message);
+          isActuallyOnline = false;
+        }
+      }
 
-      if (response.ok && data.success) {
-        alert('Shift opened successfully!');
-        setOpenDialogOpen(false);
-        setOpeningCash('');
-        setShiftNotes('');
-        refetchShifts();
+      if (isActuallyOnline) {
+        const response = await fetch('/api/shifts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(shiftData),
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+          alert('Shift opened successfully!');
+          setOpenDialogOpen(false);
+          setOpeningCash('');
+          setShiftNotes('');
+          refetchShifts();
+        } else {
+          // API failed - try offline fallback
+          if (!navigator.onLine || !response.ok) {
+            console.log('[Shift - Manager] Offline mode, creating shift locally');
+            await createShiftOffline(shiftData, user);
+            alert('Shift opened (offline mode - will sync when online)');
+            setOpenDialogOpen(false);
+            setOpeningCash('');
+            setShiftNotes('');
+            refetchShifts();
+          } else {
+            alert(data.error || 'Failed to open shift');
+          }
+        }
       } else {
-        // API failed - try offline fallback
-        if (!navigator.onLine || !response.ok) {
-          console.log('[Shift] Offline mode, creating shift locally');
+        // Offline mode - create shift locally
+        console.log('[Shift - Manager] Offline mode detected, creating shift locally');
+        try {
           await createShiftOffline(shiftData, user);
           alert('Shift opened (offline mode - will sync when online)');
           setOpenDialogOpen(false);
           setOpeningCash('');
           setShiftNotes('');
           refetchShifts();
-        } else {
-          alert(data.error || 'Failed to open shift');
+        } catch (offlineError) {
+          console.error('[Shift - Manager] Offline shift creation failed:', offlineError);
+          alert(`Failed to create shift offline: ${offlineError instanceof Error ? offlineError.message : String(offlineError)}`);
         }
       }
     } catch (error) {
