@@ -436,7 +436,6 @@ export default function ShiftManagement() {
             setOpeningCash('');
             setShiftNotes('');
             refetchShifts();
-            fetchCashiers();
             fetchCurrentShift();
           } else {
             // API failed - check if it's a network error
