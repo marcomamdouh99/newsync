@@ -446,7 +446,7 @@ export default function ShiftManagement() {
               data.error?.includes('Failed to fetch') ||
               data.error?.includes('network') ||
               data.error?.includes('ENOTFOUND') ||
-              data.error?.includes('ERR_NAME_NOTOLVED') ||
+              data.error?.includes('ERR_NAME_NOT_RESOLVED') ||
               data.error?.includes('TypeError') ||
               data.error?.includes('Failed to fetch\n') ||
               data.error?.includes('net::ERR_NAME_NOT_RESOLVED')
@@ -469,41 +469,7 @@ export default function ShiftManagement() {
               alert(data.error || 'Failed to open shift');
             }
           }
-        } else {
-          // API failed - check if it's a network error (offline)
-          const isNetworkError = 
-            !response.ok && (
-              response.status === 0 || // Network error
-              response.type === 'error' ||
-              response.statusText === 'Failed to fetch' ||
-              error instanceof Error && (
-                error.message.includes('Failed to fetch') ||
-                error.message.includes('TypeError: Failed to fetch') ||
-                error.message.includes('net::ERR_NAME_NOT_RESOLVED') ||
-                error.message.includes('ENOTFOUND') ||
-                error.message.includes('network') ||
-                error.message.includes('TypeError')
-              )
-            );
-            
-            if (isNetworkError) {
-              console.log('[Shift] Network error detected (API), trying offline mode. Error:', error);
-              try {
-                await createShiftOffline(shiftData, user);
-                alert('Shift opened (offline mode - will sync when online)');
-                setOpenDialogOpen(false);
-                setOpeningCash('');
-                setShiftNotes('');
-                fetchCurrentShift();
-                return;
-              } catch (offlineError) {
-                console.error('[Shift] Offline shift creation failed:', offlineError);
-                alert(`Failed to create shift offline: ${offlineError instanceof Error ? offlineError.message : String(offlineError)}`);
-              }
-            }
-            
-            alert(data.error || 'Failed to open shift');
-          }
+        }
       } catch (error) {
         console.error('[Shift] Failed to open shift, error:', error);
         console.error('[Shift] Error details:', {
@@ -522,7 +488,7 @@ export default function ShiftManagement() {
         });
         
         // Network error or fetch failure - try offline fallback
-        const isNetworkError = error instanceof Error &(
+        const isNetworkError = error instanceof Error && (
           error.message.includes('Failed to fetch') ||
           error.message.includes('network') ||
           error.name === 'TypeError' &&
@@ -966,7 +932,11 @@ export default function ShiftManagement() {
                     </div>
                     <div>
                       <p className="text-sm text-slate-600 dark:text-slate-400">Cash Sales</p>
-                      <p className="text-lg font-bold">—</p>
+                      <p className="text-lg font-bold">
+                        {selectedShift.paymentBreakdown?.cash
+                          ? formatCurrency(selectedShift.paymentBreakdown.cash, currency)
+                          : '—'}
+                      </p>
                     </div>
                   </div>
 
@@ -976,7 +946,11 @@ export default function ShiftManagement() {
                     </div>
                     <div>
                       <p className="text-sm text-slate-600 dark:text-slate-400">Card Sales</p>
-                      <p className="text-lg font-bold">—</p>
+                      <p className="text-lg font-bold">
+                        {selectedShift.paymentBreakdown?.card
+                          ? formatCurrency(selectedShift.paymentBreakdown.card, currency)
+                          : '—'}
+                      </p>
                     </div>
                   </div>
 
@@ -986,7 +960,11 @@ export default function ShiftManagement() {
                     </div>
                     <div>
                       <p className="text-sm text-slate-600 dark:text-slate-400">Other</p>
-                      <p className="text-lg font-bold">—</p>
+                      <p className="text-lg font-bold">
+                        {selectedShift.paymentBreakdown?.other
+                          ? formatCurrency(selectedShift.paymentBreakdown.other, currency)
+                          : '—'}
+                      </p>
                     </div>
                   </div>
                 </div>

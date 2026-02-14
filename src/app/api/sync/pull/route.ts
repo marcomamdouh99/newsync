@@ -302,6 +302,65 @@ export async function POST(request: NextRequest) {
     updates.push(`Waste Logs: ${wasteLogs.length} waste logs`);
 
     // ============================================
+    // Sync Branches (for admin access to all branches)
+    // ============================================
+    console.log(`[Sync Pull] Syncing branches...`);
+
+    const allBranches = await db.branch.findMany({
+      where: { isActive: true }
+    });
+
+    dataToReturn.branches = allBranches;
+    updates.push(`Branches: ${allBranches.length} branches`);
+
+    // ============================================
+    // Sync Delivery Areas (for POS delivery functionality)
+    // ============================================
+    console.log(`[Sync Pull] Syncing delivery areas...`);
+
+    const deliveryAreas = await db.deliveryArea.findMany({
+      where: { isActive: true }
+    });
+
+    dataToReturn.deliveryAreas = deliveryAreas;
+    updates.push(`Delivery Areas: ${deliveryAreas.length} areas`);
+
+    // ============================================
+    // Sync Customers (for customer lookup)
+    // ============================================
+    console.log(`[Sync Pull] Syncing customers for branch ${branchId}...`);
+
+    const customerWhere: any = { branchId };
+    if (sinceDate) {
+      customerWhere.createdAt = { gte: new Date(sinceDate) };
+    }
+
+    const customers = await db.customer.findMany({
+      where: customerWhere,
+      orderBy: { createdAt: 'desc' },
+      take: limit
+    });
+
+    dataToReturn.customers = customers;
+    totalRecordsProcessed += customers.length;
+    updates.push(`Customers: ${customers.length} customers`);
+
+    // ============================================
+    // Sync Couriers (for delivery management)
+    // ============================================
+    console.log(`[Sync Pull] Syncing couriers for branch ${branchId}...`);
+
+    const couriers = await db.courier.findMany({
+      where: {
+        branchId,
+        isActive: true
+      }
+    });
+
+    dataToReturn.couriers = couriers;
+    updates.push(`Couriers: ${couriers.length} couriers`);
+
+    // ============================================
     // Update Branch Last Sync Time
     // ============================================
     await updateBranchLastSync(branchId);
