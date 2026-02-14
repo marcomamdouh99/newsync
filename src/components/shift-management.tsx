@@ -115,7 +115,12 @@ async function createShiftOffline(shiftData: any, user: any): Promise<void> {
       type: 'CREATE_SHIFT',
       data: {
         ...shiftData,
-        tempId,
+        id: tempId,
+        startTime: newShift.startTime,
+        endTime: newShift.endTime || null,
+        isClosed: newShift.isClosed,
+        createdAt: newShift.createdAt,
+        updatedAt: newShift.updatedAt,
       },
       branchId: shiftData.branchId,
       retryCount: 0,
