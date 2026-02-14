@@ -1299,7 +1299,7 @@ export default function ShiftManagement() {
 
       {/* Open Shift Dialog */}
       <Dialog open={openDialogOpen} onOpenChange={setOpenDialogOpen}>
-        <DialogContent className="z-40">
+        <DialogContent className="z-[100]">
           <DialogHeader>
             <DialogTitle>Open New Shift</DialogTitle>
           </DialogHeader>
@@ -1311,7 +1311,7 @@ export default function ShiftManagement() {
                   <SelectTrigger id="cashier">
                     <SelectValue placeholder="Select cashier..." />
                   </SelectTrigger>
-                  <SelectContent className="z-50 max-h-60 overflow-y-auto">
+                  <SelectContent className="z-[110] max-h-60 overflow-y-auto">
                     {cashiers.map((cashier) => (
                       <SelectItem key={cashier.id} value={cashier.id}>
                         {cashier.name || cashier.username}
