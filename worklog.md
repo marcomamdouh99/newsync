@@ -65,3 +65,20 @@ Stage Summary:
 - Admin branch selection logic now works correctly by checking cached shifts in IndexedDB
 - Application builds successfully without syntax errors
 - Code is consistent with other localStorageService usage patterns in the file
+
+---
+
+Task ID: 3
+Agent: Z.ai Code
+Task: Fix Cashier dropdown being hidden/cut off in Open Shift dialog
+
+Work Log:
+- Identified issue: Cashier SelectContent dropdown was being clipped by Dialog overflow/positioning
+- Added z-40 class to DialogContent to establish proper stacking context
+- Added z-50 class to SelectContent to ensure it renders above the dialog
+- Added max-h-60 and overflow-y-auto to SelectContent for scrollable list when many cashiers
+
+Stage Summary:
+- Cashier dropdown now properly visible and accessible when opening shift as admin
+- Proper z-index hierarchy established (Dialog: z-40, SelectContent: z-50)
+- Dropdown is scrollable if there are many cashiers
