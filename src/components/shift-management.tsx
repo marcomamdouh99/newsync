@@ -283,8 +283,42 @@ export default function ShiftManagement() {
 
     if (user) {
       if (user.role === 'ADMIN' && branches.length > 0) {
-        console.log('[Shift Management] Setting first branch for admin:', branches[0]);
-        setSelectedBranch(branches[0].id);
+        // For admins, check if there are cached shifts in IndexedDB
+        // to find which branch has shifts, otherwise default to first branch
+        localStorageService.getAllShifts().then((cachedShifts) => {
+          console.log('[Shift Management] Cached shifts for admin branch selection:', cachedShifts.length);
+
+          if (cachedShifts.length > 0) {
+            // Find branches that have shifts
+            const branchesWithShifts = cachedShifts.reduce((acc: Set<string>, shift: any) => {
+              if (shift.branchId && branches.some((b: any) => b.id === shift.branchId)) {
+                acc.add(shift.branchId);
+              }
+              return acc;
+            }, new Set());
+
+            console.log('[Shift Management] Branches with shifts:', Array.from(branchesWithShifts));
+
+            // Find the first branch (from the branches list) that has shifts
+            const branchWithShifts = branches.find((b: any) => branchesWithShifts.has(b.id));
+
+            if (branchWithShifts) {
+              console.log('[Shift Management] Selecting branch with shifts for admin:', branchWithShifts);
+              setSelectedBranch(branchWithShifts.id);
+            } else {
+              console.log('[Shift Management] No cached shifts, selecting first branch for admin:', branches[0]);
+              setSelectedBranch(branches[0].id);
+            }
+          } else {
+            console.log('[Shift Management] No cached shifts, selecting first branch for admin:', branches[0]);
+            setSelectedBranch(branches[0].id);
+          }
+        }).catch((err) => {
+          console.error('[Shift Management] Failed to check cached shifts:', err);
+          // Fallback to first branch
+          console.log('[Shift Management] Error fallback, selecting first branch for admin:', branches[0]);
+          setSelectedBranch(branches[0].id);
+        });
       } else if (user.branchId) {
         console.log('[Shift Management] Setting user branch:', user.branchId);
         setSelectedBranch(user.branchId);
